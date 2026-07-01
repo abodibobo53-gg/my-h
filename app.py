@@ -10,7 +10,7 @@ if st.session_state.stage == 'ronaldo':
     st.title("أفضل لاعب في التاريخ ⚽")
     st.image("https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg")
     
-    time.sleep(2)
+    time.sleep(25)
     st.session_state.stage = 'prank'
     st.rerun()
 
