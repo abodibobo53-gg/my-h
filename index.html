@@ -1,222 +1,208 @@
-
-اا:
 <!DOCTYPE html>
 <html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stickman: Legends of 2099</title>
+    <title>Supreme Stickman Duelist Remake</title>
     <style>
-        body { text-align: center; background-color: #0b0c10; color: #66fcf1; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
-        h1 { color: #FF4B4B; margin-bottom: 5px; }
-        canvas { background: #1f2833; border: 4px solid #45f3ff; border-radius: 12px; display: block; margin: 0 auto; box-shadow: 0 0 20px #45f3ff; }
-        .hud { font-size: 22px; color: #45f3ff; margin: 10px; font-weight: bold; text-shadow: 0 0 10px #45f3ff; }
+        body { text-align: center; background-color: #0f1016; color: #66fcf1; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; overflow: hidden; }
+        h1 { color: #ff0055; margin-bottom: 5px; text-shadow: 0 0 15px #ff0055; font-size: 28px; }
+        canvas { background: #1a1c23; border: 4px solid #ff0055; border-radius: 15px; display: block; margin: 0 auto; box-shadow: 0 0 30px rgba(255, 0, 85, 0.3); }
+        .hud { font-size: 24px; color: #45f3ff; margin: 10px; font-weight: bold; text-shadow: 0 0 10px #45f3ff; }
     </style>
 </head>
 <body>
 
-    <h1>⚔️ Stickman: حرب السكنات الأسطورية ⚔️</h1>
+    <h1>⚔️ Supreme Stickman: قتال الفيزياء الأسطوري ⚔️</h1>
+    <div class="hud">SCORE: <span id="score">0</span></div>
     
-    <div class="hud">🛡️ المرحلة: <span id="stage">1</span> | 👾 الأعداء: <span id="enemyCount">3</span></div>
-    <canvas id="battleCanvas" width="800" height="350"></canvas>
+    <canvas id="supremeCanvas" width="800" height="450"></canvas>
 
 <script>
-    const canvas = document.getElementById('battleCanvas');
+    const canvas = document.getElementById('supremeCanvas');
     const ctx = canvas.getContext('2d');
 
-    let stage = 1;
     let keys = {};
+    let score = 0;
     let gameOver = false;
     let gameTime = 0;
 
-    let player = { x: 150, y: 270, vx: 0, vy: 0, color: '#45f3ff', isGrounded: false, attacking: false, attackTimer: 0, faceDir: 1 };
-    let allies = [{ x: 80, y: 270, vx: 0, vy: 0, color: '#2ecc71', isGrounded: false, attacking: false, attackTimer: 0, faceDir: 1 }];
+    // اللاعب (فيزياء مرنة وطيران)
+    let player = {
+        x: 250, y: 200,
+        vx: 0, vy: 0,
+        radius: 10,
+        hp: 100, maxHp: 100,
+        color: '#00efff',
+        angle: 0, // زاوية دوران الجسم بالكامل ليعطي حركة Ragdoll
+        weaponAngle: 0,
+        faceDir: 1
+    };
+
     let enemies = [];
 
-    function spawnEnemies() {
-        enemies = [];
-        let count = (stage === 1) ? 3 : 4;
-        let type = (stage === 1) ? 'pirate' : 'spider';
-        
-        for(let i=0; i<count; i++) {
-            enemies.push({
-                x: 500 + (i * 90),
-                y: (type === 'spider') ? 280 : 270,
-                hp: (stage === 1) ? 30 : 50,
-                maxHp: (stage === 1) ? 30 : 50,
-                type: type,
-                color: (type === 'pirate') ? '#111111' : '#ff0055',
-                vx: 0, vy: 0, faceDir: -1
-            });
-        }
-        document.getElementById('enemyCount').innerText = enemies.length;
+    function spawnEnemy() {
+        enemies.push({
+            x: Math.random() > 0.5 ? 100 : 700, y: 100,
+            vx: 0, vy: 0,
+            radius: 10,
+            hp: 50, maxHp: 50,
+            color: '#ff0055',
+            angle: 0,
+            weaponAngle: 0,
+            faceDir: -1,
+            speed: 2 + Math.random() * 2
+        });
     }
 
-    window.addEventListener('keydown', function(e) { keys[e.code] = true; });
-    window.addEventListener('keyup', function(e) { keys[e.code] = false; });
+    for(let i=0; i<2; i++) { spawnEnemy(); }
 
-    function drawAdvancedSkin(x, y, type, isAttacking, faceDir, color) {
-        ctx.lineWidth = 3;
+    window.addEventListener('keydown', e => { keys[e.code] = true; });
+    window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-        if (type === 'spider') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.arc(x+20, y+15, 15, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect((faceDir > 0 ? x+25 : x+5), y + 10, 5, 5);
-            ctx.strokeStyle = '#ff0055';
-            for(let i=0; i<4; i++) {
-                let legWave = Math.sin((gameTime * 0.1) + i) * 8;
-                ctx.beginPath(); ctx.moveTo(x+20, y+15); 
-                ctx.lineTo(x - 10 + (i * 20), y + 30 + legWave); ctx.stroke();
-            }
-            return;
-        }
+    // رسم السكن والفيزياء المرنة مثل اللعبة الأصلية
+    function drawRagdollStickman(char) {
+        ctx.save();
+        // نقل مركز الرسم إلى منتصف جسم الشخصية ليدور بالكامل عند الطيران
+        ctx.translate(char.x, char.y);
+        ctx.rotate(char.angle);
 
-        ctx.strokeStyle = color;
-        ctx.beginPath(); ctx.arc(x + 10, y + 10, 8, 0, Math.PI * 2); ctx.stroke();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = char.color;
+
+        // 1. الرأس
+        ctx.beginPath(); ctx.arc(0, -25, 8, 0, Math.PI * 2); ctx.stroke();
         
-        if (type === 'pirate') {
-            ctx.fillStyle = '#000000';
-            ctx.beginPath(); ctx.moveTo(x-2, y+4); ctx.lineTo(x+22, y+4); ctx.lineTo(x+10, y-5); ctx.closePath(); ctx.fill();
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(x+6, y+8); ctx.lineTo(x+14, y+12); ctx.stroke();
-            ctx.strokeStyle = color; ctx.lineWidth = 3;
-        }
-
-        if (type === 'ally') {
-            ctx.fillStyle = '#f1c40f';
-            ctx.beginPath(); ctx.arc(x + 10, y + 8, 9, Math.PI, 0); ctx.fill();
-        }
-
-        ctx.beginPath(); ctx.moveTo(x + 10, y + 18); ctx.lineTo(x + 10, y + 35); ctx.stroke();
+        // 2. الجسد (العمود الفقري)
+        ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(0, 5); ctx.stroke();
         
-        if (type === 'leader') {
-            ctx.fillStyle = '#ff003c';
-            let scarfWave = Math.sin(gameTime * 0.15) * 5;
-            ctx.beginPath();
-            ctx.moveTo(x + 10, y + 18);
-            ctx.lineTo(x - (20 * faceDir), y + 22 + scarfWave);
-            ctx.lineTo(x - (15 * faceDir), y + 15 + scarfWave);
-            ctx.closePath(); ctx.fill();
-        }
+        // 3. الأرجل المرنة
+        let legWiggle = Math.sin(gameTime * 0.2 + char.x) * 8;
+        ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(-8 + legWiggle, 22); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(8 - legWiggle, 22); ctx.stroke();
 
-let handY = y + 25;
-        if (isAttacking) {
-            ctx.save();
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = (type === 'leader') ? '#00efff' : ((type === 'ally') ? '#f1c40f' : '#ff003c');
-            ctx.strokeStyle = (type === 'leader') ? '#00efff' : ((type === 'ally') ? '#f1c40f' : '#ff003c');
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.moveTo(x + 10, handY);
-            ctx.lineTo(x + 10 + (35 * faceDir), handY - 15);
-            ctx.stroke();
-            ctx.restore();
-        } else {
-            ctx.beginPath(); ctx.moveTo(x, handY); ctx.lineTo(x + 20, handY); ctx.stroke();
-            ctx.strokeStyle = (type === 'leader') ? '#00efff' : '#f1c40f';
-            ctx.beginPath(); ctx.moveTo(x+10, y+20); ctx.lineTo(x+22, y+5); ctx.stroke();
-            ctx.strokeStyle = color;
-        }
+        // 4. اليد والذراع الحامل للسلاح المتأرجح
+        ctx.save();
+        ctx.translate(0, -10);
+        ctx.rotate(char.weaponAngle);
         
-        let legOffset = Math.sin(gameTime * 0.12) * 8;
-        ctx.beginPath(); ctx.moveTo(x + 10, y + 35); ctx.lineTo(x + 10 + legOffset, y + 50); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x + 10, y + 35); ctx.lineTo(x + 10 - legOffset, y + 50); ctx.stroke();
-    }
+        // ذراع
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(15 * char.faceDir, 5); ctx.stroke();
+        
+        // السيف السوبر المتوهج النيون
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = char.color;
+        ctx.strokeStyle = char.color;
+        ctx.lineWidth = 6;
+        ctx.beginPath(); 
+        ctx.moveTo(15 * char.faceDir, 5); 
+        ctx.lineTo(45 * char.faceDir, -5); 
+        ctx.stroke();
+        ctx.restore();
 
-    function updatePhysics(char) {
-        char.vy += 0.5; char.y += char.vy; char.x += char.vx;
-        if (char.y >= 270) { char.y = 270; char.vy = 0; char.isGrounded = true; }
-        if (char.x < 0) char.x = 0; if (char.x > 780) char.x = 780;
-    }
+        ctx.restore();
 
-    function drawHealthBar(char, yOffset) {
-        if(char.hp === undefined) return;
-        let width = 30;
+        // شريط الطاقة (ثابت فوق الشخصية)
         let pct = char.hp / char.maxHp;
-        ctx.fillStyle = '#333333'; ctx.fillRect(char.x - 5, char.y - yOffset, width, 5);
-        ctx.fillStyle = '#ff0055'; ctx.fillRect(char.x - 5, char.y - yOffset, width * pct, 5);
+        ctx.fillStyle = '#222'; ctx.fillRect(char.x - 20, char.y - 45, 40, 5);
+        ctx.fillStyle = char.color; ctx.fillRect(char.x - 20, char.y - 45, 40 * (pct < 0 ? 0 : pct), 5);
+    }
+
+    function applyPhysics(char) {
+        char.vy += 0.4; // جاذبية خفيفة ليعطي شعور الطيران والقفز العالي
+        char.vx *= 0.95; // احتكاك هواء لجعل الحركة ناعمة وسلسة
+        
+        char.x += char.vx;
+        char.y += char.vy;
+
+        // تصادم مع الأرضية
+        if (char.y >= 380) {
+            char.y = 380;
+            char.vy = 0;
+            char.angle *= 0.5; // إعادة الجسم لوضعه الطبيعي عند لمس الأرض
+        }
+
+        // تصادم مع الجدران
+        if (char.x < 20) { char.x = 20; char.vx *= -0.5; }
+        if (char.x > canvas.width - 20) { char.x = canvas.width - 20; char.vx *= -0.5; }
+    }
+
+    function checkWeaponCollision(char1, char2) {
+        // حساب المسافة بين مركز الشخصيتين لتحديد قوة الضربة والدفع (Knockback)
+        let dx = char2.x - char1.x;
+        let dy = char2.y - char1.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+
+        if (dist < 65) {
+            // دفع عكسي قوي يطير الشخصية في الهواء (Ragdoll Physics)
+            char2.vx += (dx / dist) * 8;
+            char2.vy -= 6;
+            char2.angle += 0.5 * char1.faceDir; // جعل الجسم يدور في الهواء من قوة الضربة
+            char2.hp -= 4;
+        }
     }
 
     function loop() {
+        if (gameOver) {
+            ctx.fillStyle = '#ff0055'; ctx.font = 'bold 45px sans-serif';
+            ctx.fillText('GAME OVER', 280, 200);
+            ctx.fillStyle = '#ffffff'; ctx.font = '20px sans-serif';
+            ctx.fillText('اضغط F5 لإعادة التحدي الأسطوري', 250, 250);
+            return;
+        }
+
         gameTime++;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.strokeStyle = '#45f3ff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 320); ctx.lineTo(canvas.width, 320); ctx.stroke();
 
-        player.vx = 0;
-        if (keys['ArrowRight']) { player.vx = 4; player.faceDir = 1; }
-        if (keys['ArrowLeft']) { player.vx = -4; player.faceDir = -1; }
-        if (keys['ArrowUp'] && player.isGrounded) { player.vy = -11; player.isGrounded = false; }
-        if (keys['Space'] && !player.attacking) { player.attacking = true; player.attackTimer = 10; }
-        
-        if (player.attacking) {
-            player.attackTimer--;
-            if (player.attackTimer <= 0) player.attacking = false;
-        }
-        updatePhysics(player);
-        drawAdvancedSkin(player.x, player.y, 'leader', player.attacking, player.faceDir, player.color);
+        // خط الحلبة المتوهج المعلق في الهواء
+        ctx.strokeStyle = '#66fcf1'; ctx.lineWidth = 6;
+        ctx.shadowBlur = 10; ctx.shadowColor = '#66fcf1';
+        ctx.beginPath(); ctx.moveTo(50, 400); ctx.lineTo(canvas.width - 50, 400); ctx.stroke();
+        ctx.shadowBlur = 0;
 
-        allies.forEach(function(ally) {
-            let target = (enemies.length > 0) ? enemies[0] : player;
-            let dist = target.x - ally.x;
-            ally.faceDir = (dist > 0) ? 1 : -1;
-            
-            if (Math.abs(dist) > 50) {
-                ally.vx = Math.sign(dist) * 3.2;
-            } else {
-                ally.vx = 0;
-                if (enemies.length > 0 && !ally.attacking) { ally.attacking = true; ally.attackTimer = 12; }
-            }
-            
-            if (ally.attacking) {
-                ally.attackTimer--;
-                if (ally.attackTimer <= 0) ally.attacking = false;
-            }
-            updatePhysics(ally);
-            drawAdvancedSkin(ally.x, ally.y, 'ally', ally.attacking, ally.faceDir, ally.color);
-        });
+        // دوران السلاح التلقائي لإعطاء شكل القتال الدائري للعبة Supreme Duelist
+        player.weaponAngle = Math.sin(gameTime * 0.3) * 0.8;
 
+        // تحكم طيران وقفز مرن للاعب
+        if (keys['ArrowRight']) { player.vx += 0.6; player.faceDir = 1; player.angle += 0.05; }
+        if (keys['ArrowLeft']) { player.vx -= 0.6; player.faceDir = -1; player.angle -= 0.05; }
+        if (keys['ArrowUp'] && player.y >= 370) { player.vy = -14; player.angle = (Math.random() - 0.5) * 2; }
+
+        applyPhysics(player);
+        drawRagdollStickman(player);
+
+        // حركة الأعداء المجنونة بالفيزياء
         for (let i = enemies.length - 1; i >= 0; i--) {
             let enemy = enemies[i];
-            let distToPlayer = player.x - enemy.x;
-            enemy.faceDir = (distToPlayer > 0) ? 1 : -1;
-            enemy.vx = Math.sign(distToPlayer) * 1.8;
+            enemy.weaponAngle = Math.cos(gameTime * 0.2 + i) * 1;
+
+            let dx = player.x - enemy.x;
+            enemy.faceDir = dx > 0 ? 1 : -1;
             
-            if (player.attacking && Math.abs(player.x - enemy.x) < 55) {
-                enemy.hp -= 2; player.attacking = false;
-            }
-            allies.forEach(function(ally) {
-                if (ally.attacking && Math.abs(ally.x - enemy.x) < 55) { enemy.hp -= 1; }
-            });
+            // العدو يطير باتجاهك ويحاول القفز وضربك بالفيزياء
+            enemy.vx += Math.sign(dx) * 0.3;
+            if (Math.random() < 0.02 && enemy.y >= 370) { enemy.vy = -12; }
 
-updatePhysics(enemy);
-            drawAdvancedSkin(enemy.x, enemy.y, enemy.type, false, enemy.faceDir, enemy.color);
-            drawHealthBar(enemy, 15);
+            applyPhysics(enemy);
+            drawRagdollStickman(enemy);
 
-            if (enemy.hp <= 0) { enemies.splice(i, 1); }
-        }
+            // حساب ضربات الأسلحة المتبادلة وتأثير الطيران
+            checkWeaponCollision(player, enemy);
+            checkWeaponCollision(enemy, player);
 
-        document.getElementById('enemyCount').innerText = enemies.length;
+            if (player.hp <= 0) gameOver = true;
 
-        if (enemies.length === 0 && !gameOver) {
-            if (stage === 1) {
-                stage = 2;
-                document.getElementById('stage').innerText = '2';
-                spawnEnemies();
-            } else {
-                ctx.fillStyle = '#00ff88'; ctx.font = 'bold 28px sans-serif';
-                ctx.fillText('🎉 WIN 🎉', 320, 170);
-                gameOver = true;
+            if (enemy.hp <= 0) {
+                enemies.splice(i, 1);
+                score += 1;
+                document.getElementById('score').innerText = score;
+                setTimeout(spawnEnemy, 800);
             }
         }
 
-        if (!gameOver) requestAnimationFrame(loop);
+        requestAnimationFrame(loop);
     }
 
-    stage = 1;
-    gameOver = false;
-    spawnEnemies();
     loop();
 </script>
 </body>
