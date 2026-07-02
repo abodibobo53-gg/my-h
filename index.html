@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+[7/2/2026 5:32 AM] اا: <!DOCTYPE html>
 <html lang="ar">
 <head>
     <meta charset="UTF-8">
@@ -89,3 +89,140 @@
             ctx.fillStyle = '#f1c40f';
             ctx.beginPath(); ctx.arc(x + 10, y + 8, 9, Math.PI, 0); ctx.fill();
         }
+[7/2/2026 5:32 AM] اا: ctx.beginPath(); ctx.moveTo(x + 10, y + 18); ctx.lineTo(x + 10, y + 35); ctx.stroke();
+        
+        if (type === 'leader') {
+            ctx.fillStyle = '#ff003c';
+            let scarfWave = Math.sin(gameTime * 0.15) * 5;
+            ctx.beginPath();
+            ctx.moveTo(x + 10, y + 18);
+            ctx.lineTo(x - (20 * faceDir), y + 22 + scarfWave);
+            ctx.lineTo(x - (15 * faceDir), y + 15 + scarfWave);
+            ctx.closePath(); ctx.fill();
+        }
+
+        let handY = y + 25;
+        if (isAttacking) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = (type === 'leader') ? '#00efff' : ((type === 'ally') ? '#f1c40f' : '#ff003c');
+            ctx.strokeStyle = ctx.shadowColor;
+            ctx.lineWidth = 5;
+            
+            ctx.beginPath();
+            ctx.moveTo(x + 10, handY);
+            ctx.lineTo(x + 10 + (35 * faceDir), handY - 15);
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+        } else {
+            ctx.beginPath(); ctx.moveTo(x, handY); ctx.lineTo(x + 20, handY); ctx.stroke();
+            ctx.strokeStyle = (type === 'leader') ? '#00efff' : '#f1c40f';
+            ctx.beginPath(); ctx.moveTo(x+10, y+20); ctx.lineTo(x+22, y+5); ctx.stroke();
+            ctx.strokeStyle = color;
+        }
+        
+        let legOffset = Math.sin(gameTime * 0.12) * 8;
+        ctx.beginPath(); ctx.moveTo(x + 10, y + 35); ctx.lineTo(x + 10 + legOffset, y + 50); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 10, y + 35); ctx.lineTo(x + 10 - legOffset, y + 50); ctx.stroke();
+    }
+
+    function updatePhysics(char) {
+        char.vy += 0.5; char.y += char.vy; char.x += char.vx;
+        if (char.y >= 270) { char.y = 270; char.vy = 0; char.isGrounded = true; }
+        if (char.x < 0) char.x = 0; if (char.x > 780) char.x = 780;
+    }
+
+    function drawHealthBar(char, yOffset) {
+        if(char.hp === undefined) return;
+        let width = 30;
+        let pct = char.hp / char.maxHp;
+        ctx.fillStyle = '#333333'; ctx.fillRect(char.x - 5, char.y - yOffset, width, 5);
+        ctx.fillStyle = '#ff0055'; ctx.fillRect(char.x - 5, char.y - yOffset, width * pct, 5);
+    }
+
+    function loop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#45f3ff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 320); ctx.lineTo(canvas.width, 320); ctx.stroke();
+
+        player.vx = 0;
+        if (keys['ArrowRight']) { player.vx = 4; player.faceDir = 1; }
+        if (keys['ArrowLeft']) { player.vx = -4; player.faceDir = -1; }
+        if (keys['ArrowUp'] && player.isGrounded) { player.vy = -11; player.isGrounded = false; }
+        if (keys['Space'] && !player.attacking) { player.attacking = true; player.attackTimer = 10; }
+        
+        if (player.attacking) {
+            player.attackTimer--;
+            if (player.attackTimer <= 0) player.attacking = false;
+        }
+        updatePhysics(player);
+        drawAdvancedSkin(player.x, player.y, 'leader', player.attacking, player.faceDir, player.color);
+
+        allies.forEach(function(ally) {
+            let target = (enemies.length > 0) ? enemies[0] : player;
+            let dist = target.x - ally.x;
+            ally.faceDir = (dist > 0) ? 1 : -1;
+            
+            if (Math.abs(dist) > 50) {
+                ally.vx = Math.sign(dist) * 3.2;
+            } else {
+                ally.vx = 0;
+                if (enemies.length > 0 && !ally.attacking) { ally.attacking = true; ally.attackTimer = 12; }
+            }
+            
+            if (ally.attacking) {
+                ally.attackTimer--;
+                if (ally.attackTimer <= 0) ally.attacking = false;
+            }
+            updatePhysics(ally);
+            drawAdvancedSkin(ally.x, ally.y, 'ally', ally.attacking, ally.faceDir, ally.color);
+        });
+[7/2/2026 5:32 AM] اا: for (let i = enemies.length - 1; i >= 0; i--) {
+            let enemy = enemies[i];
+            let distToPlayer = player.x - enemy.x;
+            enemy.faceDir = (distToPlayer > 0) ? 1 : -1;
+            enemy.vx = Math.sign(distToPlayer) * 1.8;
+            
+            if (player.attacking && Math.abs(player.x - enemy.x) < 55) {
+                enemy.hp -= 2; player.attacking = false;
+            }
+            allies.forEach(function(ally) {
+                if (ally.attacking && Math.abs(ally.x - enemy.x) < 55) { enemy.hp -= 1; }
+            });
+
+            updatePhysics(enemy);
+            drawAdvancedSkin(enemy.x, enemy.y, enemy.type, false, enemy.faceDir, enemy.color);
+            drawHealthBar(enemy, 15);
+
+            if (enemy.hp <= 0) { enemies.splice(i, 1); }
+        }
+
+        document.getElementById('enemyCount').innerText = enemies.length;
+
+        if (enemies.length === 0 && !gameOver) {
+            if (stage === 1) {
+                stage = 2;
+                document.getElementById('stage').innerText = '2 (موجة موبات عناكب ماين كرافت الضخمة)';
+                spawnEnemies();
+            } else {
+                ctx.fillStyle = '#00ff88'; ctx.font = 'bold 28px sans-serif';
+                ctx.shadowBlur = 10; ctx.shadowColor = '#00ff88';
+                ctx.fillText('🎉 كفو! انتصر فريقك وتم تطهير كل الخرائط بنجاح! 🎉', 80, 170);
+                gameOver = true;
+            }
+        }
+
+        if (!gameOver) requestAnimationFrame(loop);
+    }
+
+    // تشغيل تلقائي وفوري ومستمر للعبة لإلغاء مشاكل الكاش
+    window.onload = function() {
+        gameOver = false;
+        stage = 1;
+        spawnEnemies();
+        loop();
+    };
+</script>
+</body>
+</html>
