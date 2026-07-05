@@ -1,209 +1,100 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Supreme Stickman Duelist Remake</title>
+    <title>اختبار ذكاء سريع! 🧠</title>
     <style>
-        body { text-align: center; background-color: #0f1016; color: #66fcf1; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; overflow: hidden; }
-        h1 { color: #ff0055; margin-bottom: 5px; text-shadow: 0 0 15px #ff0055; font-size: 28px; }
-        canvas { background: #1a1c23; border: 4px solid #ff0055; border-radius: 15px; display: block; margin: 0 auto; box-shadow: 0 0 30px rgba(255, 0, 85, 0.3); }
-        .hud { font-size: 24px; color: #45f3ff; margin: 10px; font-weight: bold; text-shadow: 0 0 10px #45f3ff; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e2e;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            background: #252538;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            width: 85%;
+            max-width: 400px;
+            position: relative;
+        }
+
+        h1 {
+            color: #ff007f;
+            font-size: 28px;
+            margin-bottom: 30px;
+            direction: ltr;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            height: 100px;
+            position: relative;
+        }
+
+        button {
+            padding: 12px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+        #correct-btn {
+            background-color: #38ef7d;
+            color: white;
+        }
+
+        #wrong-btn {
+            background-color: #11998e;
+            color: white;
+            position: absolute;
+        }
     </style>
 </head>
 <body>
 
-    <h1>⚔️ Supreme Stickman: قتال الفيزياء الأسطوري ⚔️</h1>
-    <div class="hud">SCORE: <span id="score">0</span></div>
-    
-    <canvas id="supremeCanvas" width="800" height="450"></canvas>
-
-<script>
-    const canvas = document.getElementById('supremeCanvas');
-    const ctx = canvas.getContext('2d');
-
-    let keys = {};
-    let score = 0;
-    let gameOver = false;
-    let gameTime = 0;
-
-    // اللاعب (فيزياء مرنة وطيران)
-    let player = {
-        x: 250, y: 200,
-        vx: 0, vy: 0,
-        radius: 10,
-        hp: 100, maxHp: 100,
-        color: '#00efff',
-        angle: 0, // زاوية دوران الجسم بالكامل ليعطي حركة Ragdoll
-        weaponAngle: 0,
-        faceDir: 1
-    };
-
-    let enemies = [];
-
-    function spawnEnemy() {
-        enemies.push({
-            x: Math.random() > 0.5 ? 100 : 700, y: 100,
-            vx: 0, vy: 0,
-            radius: 10,
-            hp: 50, maxHp: 50,
-            color: '#ff0055',
-            angle: 0,
-            weaponAngle: 0,
-            faceDir: -1,
-            speed: 2 + Math.random() * 2
-        });
-    }
-
-    for(let i=0; i<2; i++) { spawnEnemy(); }
-
-    window.addEventListener('keydown', e => { keys[e.code] = true; });
-    window.addEventListener('keyup', e => { keys[e.code] = false; });
-
-    // رسم السكن والفيزياء المرنة مثل اللعبة الأصلية
-    function drawRagdollStickman(char) {
-        ctx.save();
-        // نقل مركز الرسم إلى منتصف جسم الشخصية ليدور بالكامل عند الطيران
-        ctx.translate(char.x, char.y);
-        ctx.rotate(char.angle);
-
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = char.color;
-
-        // 1. الرأس
-        ctx.beginPath(); ctx.arc(0, -25, 8, 0, Math.PI * 2); ctx.stroke();
+    <div class="container">
+        <h1 id="question">1 + 1 = 3 ؟</h1>
         
-        // 2. الجسد (العمود الفقري)
-        ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(0, 5); ctx.stroke();
-        
-        // 3. الأرجل المرنة
-        let legWiggle = Math.sin(gameTime * 0.2 + char.x) * 8;
-        ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(-8 + legWiggle, 22); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(8 - legWiggle, 22); ctx.stroke();
+        <div class="btn-group">
+            <button id="correct-btn" onclick="sayYes()">3</button>
+            <button id="wrong-btn" onmouseover="moveButton()" onclick="moveButton()">2</button>
+        </div>
+    </div>
 
-        // 4. اليد والذراع الحامل للسلاح المتأرجح
-        ctx.save();
-        ctx.translate(0, -10);
-        ctx.rotate(char.weaponAngle);
-        
-        // ذراع
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(15 * char.faceDir, 5); ctx.stroke();
-        
-        // السيف السوبر المتوهج النيون
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = char.color;
-        ctx.strokeStyle = char.color;
-        ctx.lineWidth = 6;
-        ctx.beginPath(); 
-        ctx.moveTo(15 * char.faceDir, 5); 
-        ctx.lineTo(45 * char.faceDir, -5); 
-        ctx.stroke();
-        ctx.restore();
-
-        ctx.restore();
-
-        // شريط الطاقة (ثابت فوق الشخصية)
-        let pct = char.hp / char.maxHp;
-        ctx.fillStyle = '#222'; ctx.fillRect(char.x - 20, char.y - 45, 40, 5);
-        ctx.fillStyle = char.color; ctx.fillRect(char.x - 20, char.y - 45, 40 * (pct < 0 ? 0 : pct), 5);
-    }
-
-    function applyPhysics(char) {
-        char.vy += 0.4; // جاذبية خفيفة ليعطي شعور الطيران والقفز العالي
-        char.vx *= 0.95; // احتكاك هواء لجعل الحركة ناعمة وسلسة
-        
-        char.x += char.vx;
-        char.y += char.vy;
-
-        // تصادم مع الأرضية
-        if (char.y >= 380) {
-            char.y = 380;
-            char.vy = 0;
-            char.angle *= 0.5; // إعادة الجسم لوضعه الطبيعي عند لمس الأرض
-        }
-
-        // تصادم مع الجدران
-        if (char.x < 20) { char.x = 20; char.vx *= -0.5; }
-        if (char.x > canvas.width - 20) { char.x = canvas.width - 20; char.vx *= -0.5; }
-    }
-
-    function checkWeaponCollision(char1, char2) {
-        // حساب المسافة بين مركز الشخصيتين لتحديد قوة الضربة والدفع (Knockback)
-        let dx = char2.x - char1.x;
-        let dy = char2.y - char1.y;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-
-        if (dist < 65) {
-            // دفع عكسي قوي يطير الشخصية في الهواء (Ragdoll Physics)
-            char2.vx += (dx / dist) * 8;
-            char2.vy -= 6;
-            char2.angle += 0.5 * char1.faceDir; // جعل الجسم يدور في الهواء من قوة الضربة
-            char2.hp -= 4;
-        }
-    }
-
-    function loop() {
-        if (gameOver) {
-            ctx.fillStyle = '#ff0055'; ctx.font = 'bold 45px sans-serif';
-            ctx.fillText('GAME OVER', 280, 200);
-            ctx.fillStyle = '#ffffff'; ctx.font = '20px sans-serif';
-            ctx.fillText('اضغط F5 لإعادة التحدي الأسطوري', 250, 250);
-            return;
-        }
-
-        gameTime++;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // خط الحلبة المتوهج المعلق في الهواء
-        ctx.strokeStyle = '#66fcf1'; ctx.lineWidth = 6;
-        ctx.shadowBlur = 10; ctx.shadowColor = '#66fcf1';
-        ctx.beginPath(); ctx.moveTo(50, 400); ctx.lineTo(canvas.width - 50, 400); ctx.stroke();
-        ctx.shadowBlur = 0;
-
-        // دوران السلاح التلقائي لإعطاء شكل القتال الدائري للعبة Supreme Duelist
-        player.weaponAngle = Math.sin(gameTime * 0.3) * 0.8;
-
-        // تحكم طيران وقفز مرن للاعب
-        if (keys['ArrowRight']) { player.vx += 0.6; player.faceDir = 1; player.angle += 0.05; }
-        if (keys['ArrowLeft']) { player.vx -= 0.6; player.faceDir = -1; player.angle -= 0.05; }
-        if (keys['ArrowUp'] && player.y >= 370) { player.vy = -14; player.angle = (Math.random() - 0.5) * 2; }
-
-        applyPhysics(player);
-        drawRagdollStickman(player);
-
-        // حركة الأعداء المجنونة بالفيزياء
-        for (let i = enemies.length - 1; i >= 0; i--) {
-            let enemy = enemies[i];
-            enemy.weaponAngle = Math.cos(gameTime * 0.2 + i) * 1;
-
-            let dx = player.x - enemy.x;
-            enemy.faceDir = dx > 0 ? 1 : -1;
+    <script>
+        function moveButton() {
+            const wrongBtn = document.getElementById('wrong-btn');
+            const x = Math.random() * (window.innerWidth - wrongBtn.offsetWidth - 20);
+            const y = Math.random() * (window.innerHeight - wrongBtn.offsetHeight - 20);
             
-            // العدو يطير باتجاهك ويحاول القفز وضربك بالفيزياء
-            enemy.vx += Math.sign(dx) * 0.3;
-            if (Math.random() < 0.02 && enemy.y >= 370) { enemy.vy = -12; }
-
-            applyPhysics(enemy);
-            drawRagdollStickman(enemy);
-
-            // حساب ضربات الأسلحة المتبادلة وتأثير الطيران
-            checkWeaponCollision(player, enemy);
-            checkWeaponCollision(enemy, player);
-
-            if (player.hp <= 0) gameOver = true;
-
-            if (enemy.hp <= 0) {
-                enemies.splice(i, 1);
-                score += 1;
-                document.getElementById('score').innerText = score;
-                setTimeout(spawnEnemy, 800);
-            }
+            wrongBtn.style.position = 'fixed';
+            wrongBtn.style.left = x + 'px';
+            wrongBtn.style.top = y + 'px';
         }
 
-        requestAnimationFrame(loop);
-    }
+        function sayYes() {
+            document.getElementById('question').style.direction = 'rtl';
+            document.getElementById('question').innerText = "شنت الشاك بيك! 😭😂";
+            document.getElementById('correct-btn').style.display = 'none';
+            document.getElementById('wrong-btn').style.display = 'none';
+        }
+    </script>
 
-    loop();
-</script>
 </body>
 </html>
