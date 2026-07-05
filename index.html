@@ -23,29 +23,38 @@
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-            width: 85%;
-            max-width: 400px;
+            width: 90%;
+            max-width: 500px;
         }
-        h1 { color: #ff007f; font-size: 28px; margin-bottom: 30px; }
-        .btn-group { display: flex; justify-content: space-around; align-items: center; height: 100px; position: relative; }
-        button { padding: 12px 40px; font-size: 20px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
+        h1 { color: #ff007f; font-size: 28px; margin-bottom: 50px; }
+        
+        .btn-wrapper {
+            display: flex;
+            justify-content: center;
+            gap: 60px; /* مسافة كبيرة بين الزرين */
+            position: relative;
+            padding: 20px;
+        }
+        
+        button { padding: 15px 40px; font-size: 24px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
         #btn-3 { background-color: #38ef7d; color: white; }
-        #btn-2 { background-color: #e84118; color: white; position: absolute; }
+        #btn-2 { background-color: #e84118; color: white; transition: all 0.05s ease; position: relative; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1 id="question">1 + 1 = ؟</h1>
-        <div class="btn-group">
+        <div class="btn-wrapper">
             <button id="btn-3" onclick="sayYes()">3</button>
-            <button id="btn-2" onmouseover="moveButton()" onclick="moveButton()">2</button>
+            <button id="btn-2" onmouseover="moveButton()" onclick="moveButton()" ontouchstart="moveButton()">2</button>
         </div>
     </div>
     <script>
         function moveButton() {
             const btn2 = document.getElementById('btn-2');
-            const x = Math.random() * (window.innerWidth - btn2.offsetWidth - 20);
-            const y = Math.random() * (window.innerHeight - btn2.offsetHeight - 20);
+            // الزر يهرب لمكان عشوائي في الشاشة
+            const x = Math.random() * (window.innerWidth - btn2.offsetWidth - 50);
+            const y = Math.random() * (window.innerHeight - btn2.offsetHeight - 50);
             btn2.style.position = 'fixed';
             btn2.style.left = x + 'px';
             btn2.style.top = y + 'px';
