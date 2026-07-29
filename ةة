@@ -1,0 +1,541 @@
+import os
+
+html_code = """<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>Mari Lep's World - Complete Edition</title>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 35px rgba(0,0,0,0.9);
+            border: 5px solid #2ecc71;
+            border-radius: 12px;
+            overflow: hidden;
+            width: 900px;
+            height: 500px;
+        }
+        canvas { display: block; background: #5c94fc; }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .hidden { display: none !important; }
+
+        h1 { font-size: 42px; color: #2ecc71; margin-bottom: 20px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        h2 { font-size: 28px; color: #f1c40f; margin-bottom: 25px; }
+
+        .btn {
+            background: #2ecc71;
+            color: #fff;
+            border: none;
+            padding: 12px 32px;
+            margin: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 4px 0 #27ae60;
+        }
+        .btn:hover { background: #27ae60; transform: translateY(-2px); }
+        .btn:active { transform: translateY(2px); box-shadow: none; }
+        .btn-secondary { background: #e67e22; box-shadow: 0 4px 0 #d35400; }
+        .btn-secondary:hover { background: #d35400; }
+
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .level-btn {
+            width: 80px; height: 80px;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #34495e;
+            box-shadow: 0 4px 0 #2c3e50;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="900" height="500"></canvas>
+
+    <div id="main-menu" class="overlay">
+        <h1>☘️ Mari Lep's World 🌰</h1>
+        <button class="btn" onclick="startGame(0)">بدء اللعب</button>
+        <button class="btn btn-secondary" onclick="showLevelSelect()">اختيار المرحلة 🗺️</button>
+        <button class="btn" style="background:#8e44ad; box-shadow:0 4px 0 #732d91;" onclick="loadSavedGame()">تحميل آخر حفظ 💾</button>
+    </div>
+
+    <div id="level-menu" class="overlay hidden">
+        <h2>اختر المرحلة</h2>
+        <div class="level-grid">
+            <button class="btn level-btn" onclick="startGame(0)">1</button>
+            <button class="btn level-btn" onclick="startGame(1)">2</button>
+            <button class="btn level-btn" onclick="startGame(2)">3</button>
+        </div>
+        <button class="btn btn-secondary" onclick="showMainMenu()">رجوع</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameState = 'MENU';
+let currentLevelIndex = 0;
+
+const levels = [
+    {
+        platforms: [
+            { x: 0, y: 440, width: 400, height: 60, type: 'ground' },
+            { x: 480, y: 440, width: 420, height: 60, type: 'ground' },
+            { x: 200, y: 320, width: 120, height: 30, type: 'block' },
+            { x: 500, y: 280, width: 140, height: 30, type: 'ground' }
+        ],
+        spikes: [{ x: 250, y: 415, width: 40, height: 25 }],
+        coins: [
+            { x: 210, y: 275, width: 20, height: 20, collected: false },
+            { x: 240, y: 275, width: 20, height: 20, collected: false },
+            { x: 520, y: 235, width: 20, height: 20, collected: false }
+        ],
+        monsters: [
+            { x: 520, y: 400, width: 35, height: 35, speed: 1.5, minX: 480, maxX: 700, alive: true }
+        ],
+        finishLine: { x: 820, y: 340, width: 40, height: 100 }
+    },
+    {
+        platforms: [
+            { x: 0, y: 440, width: 250, height: 60, type: 'ground' },
+            { x: 320, y: 440, width: 200, height: 60, type: 'ground' },
+            { x: 600, y: 440, width: 300, height: 60, type: 'ground' },
+            { x: 150, y: 330, width: 80, height: 30, type: 'block' },
+            { x: 380, y: 270, width: 100, height: 30, type: 'block' },
+            { x: 650, y: 320, width: 100, height: 30, type: 'block' }
+        ],
+        spikes: [
+            { x: 350, y: 415, width: 30, height: 25 },
+            { x: 680, y: 295, width: 30, height: 25 }
+        ],
+        coins: [
+            { x: 160, y: 285, width: 20, height: 20, collected: false },
+            { x: 400, y: 225, width: 20, height: 20, collected: false },
+            { x: 670, y: 275, width: 20, height: 20, collected: false }
+        ],
+        monsters: [
+            { x: 100, y: 400, width: 35, height: 35, speed: 2, minX: 20, maxX: 200, alive: true },
+            { x: 630, y: 400, width: 35, height: 35, speed: 2.5, minX: 600, maxX: 800, alive: true }
+        ],
+        finishLine: { x: 820, y: 340, width: 40, height: 100 }
+    },
+    {
+        platforms: [
+            { x: 0, y: 440, width: 180, height: 60, type: 'ground' },
+            { x: 260, y: 380, width: 100, height: 30, type: 'block' },
+            { x: 420, y: 320, width: 100, height: 30, type: 'block' },
+            { x: 580, y: 260, width: 120, height: 30, type: 'block' },
+            { x: 750, y: 440, width: 150, height: 60, type: 'ground' }
+        ],
+        spikes: [{ x: 620, y: 235, width: 30, height: 25 }],
+        coins: [
+            { x: 280, y: 335, width: 20, height: 20, collected: false },
+            { x: 440, y: 275, width: 20, height: 20, collected: false },
+            { x: 600, y: 215, width: 20, height: 20, collected: false }
+        ],
+        monsters: [
+            { x: 270, y: 345, width: 35, height: 35, speed: 1.5, minX: 260, maxX: 330, alive: true },
+            { x: 770, y: 400, width: 35, height: 35, speed: 3, minX: 750, maxX: 870, alive: true }
+        ],
+        finishLine: { x: 840, y: 340, width: 40, height: 100 }
+    }
+];
+
+const player = {
+    x: 50,
+    y: 350,
+    lastSafeX: 50,
+    lastSafeY: 350,
+    width: 35,
+    height: 48,
+    dx: 0,
+    dy: 0,
+    speed: 5.5,
+    gravity: 0.75,
+    jumpPower: -13.5,
+    isGrounded: false,
+    direction: 'right',
+    lives: 3,
+    invulnerable: 0,
+    shootCooldown: 0
+};
+
+const acorns = [];
+let score = 0;
+
+function showMainMenu() {
+    document.getElementById('main-menu').classList.remove('hidden');
+    document.getElementById('level-menu').classList.add('hidden');
+    gameState = 'MENU';
+}
+
+function showLevelSelect() {
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('level-menu').classList.remove('hidden');
+}
+
+function startGame(levelIdx) {
+    currentLevelIndex = levelIdx;
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('level-menu').classList.add('hidden');
+    player.lives = 3;
+    score = 0;
+    resetPlayerPosition(50, 350);
+    gameState = 'PLAYING';
+    saveProgress();
+}
+
+function respawnAtCheckPoint() {
+    player.x = player.lastSafeX;
+    player.y = player.lastSafeY;
+    player.dx = 0;
+    player.dy = 0;
+    player.invulnerable = 60;
+}
+
+function resetPlayerPosition(x, y) {
+    player.x = x;
+    player.y = y;
+    player.lastSafeX = x;
+    player.lastSafeY = y;
+    player.dx = 0;
+    player.dy = 0;
+    player.invulnerable = 60;
+}
+
+function saveProgress() {
+    localStorage.setItem('mario_saved_level', currentLevelIndex);
+    localStorage.setItem('mario_saved_score', score);
+}
+
+function loadSavedGame() {
+    const savedLvl = localStorage.getItem('mario_saved_level');
+    const savedScore = localStorage.getItem('mario_saved_score');
+    if (savedLvl !== null) {
+        score = parseInt(savedScore) || 0;
+        startGame(parseInt(savedLvl));
+    } else {
+        alert("لا يوجد حفظ سابق!");
+    }
+}
+
+const keys = {};
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+function update() {
+    if (gameState !== 'PLAYING') return;
+
+    let currentLevel = levels[currentLevelIndex];
+
+    if (player.invulnerable > 0) player.invulnerable--;
+    if (player.shootCooldown > 0) player.shootCooldown--;
+
+    if (keys['ArrowRight'] || keys['KeyD']) {
+        player.dx = player.speed;
+        player.direction = 'right';
+    } else if (keys['ArrowLeft'] || keys['KeyA']) {
+        player.dx = -player.speed;
+        player.direction = 'left';
+    } else {
+        player.dx = 0;
+    }
+
+    if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && player.isGrounded) {
+        player.dy = player.jumpPower;
+        player.isGrounded = false;
+    }
+
+    if ((keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyX']) && player.shootCooldown === 0) {
+        acorns.push({
+            x: player.direction === 'right' ? player.x + player.width : player.x - 15,
+            y: player.y + 15,
+            width: 14,
+            height: 14,
+            speed: player.direction === 'right' ? 8 : -8
+        });
+        player.shootCooldown = 15;
+    }
+
+    acorns.forEach((acorn, index) => {
+        acorn.x += acorn.speed;
+        if (acorn.x < 0 || acorn.x > canvas.width) acorns.splice(index, 1);
+
+        currentLevel.monsters.forEach(m => {
+            if (m.alive &&
+                acorn.x < m.x + m.width &&
+                acorn.x + acorn.width > m.x &&
+                acorn.y < m.y + m.height &&
+                acorn.y + acorn.height > m.y) {
+                m.alive = false;
+                score += 50;
+                acorns.splice(index, 1);
+            }
+        });
+    });
+
+    player.dy += player.gravity;
+    player.x += player.dx;
+    player.y += player.dy;
+
+    player.isGrounded = false;
+    currentLevel.platforms.forEach(p => {
+        if (
+            player.x < p.x + p.width &&
+            player.x + player.width > p.x &&
+            player.y + player.height <= p.y + player.dy + 10 &&
+            player.y + player.height >= p.y
+        ) {
+            player.dy = 0;
+            player.y = p.y - player.height;
+            player.isGrounded = true;
+            player.lastSafeX = player.x;
+            player.lastSafeY = player.y;
+        }
+    });
+
+    let f = currentLevel.finishLine;
+    if (player.x < f.x + f.width &&
+        player.x + player.width > f.x &&
+        player.y < f.y + f.height &&
+        player.y + player.height > f.y) {
+        
+        if (currentLevelIndex < levels.length - 1) {
+            currentLevelIndex++;
+            saveProgress();
+            resetPlayerPosition(50, 350);
+        } else {
+            gameState = 'WON';
+        }
+    }
+
+    currentLevel.monsters.forEach(m => {
+        if (!m.alive) return;
+        m.x += m.speed;
+        if (m.x <= m.minX || m.x + m.width >= m.maxX) m.speed *= -1;
+
+        if (player.x < m.x + m.width &&
+            player.x + player.width > m.x &&
+            player.y < m.y + m.height &&
+            player.y + player.height > m.y) {
+            
+            if (player.dy > 0 && player.y + player.height - player.dy <= m.y + 12) {
+                m.alive = false;
+                player.dy = player.jumpPower / 1.5;
+                score += 50;
+            } else if (player.invulnerable === 0) {
+                player.lives--;
+                if(player.lives > 0) respawnAtCheckPoint();
+                else gameState = 'GAMEOVER';
+            }
+        }
+    });
+
+    currentLevel.spikes.forEach(s => {
+        if (player.invulnerable === 0 &&
+            player.x < s.x + s.width &&
+            player.x + player.width > s.x &&
+            player.y < s.y + s.height &&
+            player.y + player.height > s.y) {
+            player.lives--;
+            if(player.lives > 0) respawnAtCheckPoint();
+            else gameState = 'GAMEOVER';
+        }
+    });
+
+    currentLevel.coins.forEach(coin => {
+        if (!coin.collected &&
+            player.x < coin.x + coin.width &&
+            player.x + player.width > coin.x &&
+            player.y < coin.y + coin.height &&
+            player.y + player.height > coin.y) {
+            coin.collected = true;
+            score += 10;
+        }
+    });
+
+    if (player.y > canvas.height) {
+        player.lives--;
+        if(player.lives > 0) respawnAtCheckPoint();
+        else gameState = 'GAMEOVER';
+    }
+
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+}
+
+function drawPlayer(x, y, w, h, dir) {
+    ctx.fillStyle = '#2ecc71';
+    ctx.fillRect(x + 5, y + 20, w - 10, h - 20);
+    ctx.fillStyle = '#ffdbac';
+    ctx.fillRect(x + 5, y + 8, w - 10, 14);
+    ctx.fillStyle = '#27ae60';
+    ctx.fillRect(x + 2, y, w - 4, 10);
+    ctx.fillRect(dir === 'right' ? x + 10 : x - 2, y + 7, w - 8, 4);
+    ctx.fillStyle = '#000';
+    let eyeX = dir === 'right' ? x + w - 12 : x + 8;
+    ctx.fillRect(eyeX, y + 12, 4, 4);
+    ctx.fillStyle = '#e67e22';
+    ctx.fillRect(x + 3, y + h - 6, 12, 6);
+    ctx.fillRect(x + w - 15, y + h - 6, 12, 6);
+}
+
+function drawMonster(x, y, w, h) {
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.arc(x + w/2, y + h/2, w/2, Math.PI, 0, false);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x + 8, y + 6, 5, 5);
+    ctx.fillRect(x + w - 13, y + 6, 5, 5);
+    ctx.fillStyle = '#f39c12';
+    ctx.fillRect(x + 6, y + h/2, w - 12, h/2);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x + 10, y + h/2 + 4, 3, 6);
+    ctx.fillRect(x + w - 13, y + h/2 + 4, 3, 6);
+}
+
+function drawAcorn(x, y, w, h) {
+    ctx.fillStyle = '#d35400';
+    ctx.beginPath();
+    ctx.arc(x + w/2, y + h/2, w/2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#6e2c00';
+    ctx.fillRect(x, y, w, h/3);
+}
+
+function drawCoin(x, y, w, h) {
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath();
+    ctx.arc(x + w/2, y + h/2, w/2, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawSpike(x, y, w, h) {
+    ctx.fillStyle = '#7f8c8d';
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x + w/2, y);
+    ctx.lineTo(x + w, y + h);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawFinishLine(x, y, w, h) {
+    ctx.fillStyle = '#bdc3c7';
+    ctx.fillRect(x + 10, y, 6, h);
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.moveTo(x + 16, y);
+    ctx.lineTo(x + 40, y + 15);
+    ctx.lineTo(x + 16, y + 30);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (gameState === 'MENU') return;
+
+    let currentLevel = levels[currentLevelIndex];
+
+    currentLevel.platforms.forEach(p => {
+        ctx.fillStyle = p.type === 'ground' ? '#27ae60' : '#d35400';
+        ctx.fillRect(p.x, p.y, p.width, p.height);
+        if (p.type === 'ground') {
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(p.x, p.y, p.width, 6);
+        }
+    });
+
+    drawFinishLine(currentLevel.finishLine.x, currentLevel.finishLine.y, currentLevel.finishLine.width, currentLevel.finishLine.height);
+    currentLevel.spikes.forEach(s => drawSpike(s.x, s.y, s.width, s.height));
+    currentLevel.coins.forEach(c => { if (!c.collected) drawCoin(c.x, c.y, c.width, c.height); });
+    currentLevel.monsters.forEach(m => { if (m.alive) drawMonster(m.x, m.y, m.width, m.height); });
+    acorns.forEach(a => drawAcorn(a.x, a.y, a.width, a.height));
+
+    if (player.invulnerable % 10 < 5) {
+        drawPlayer(player.x, player.y, player.width, player.height, player.direction);
+    }
+
+    for (let i = 0; i < player.lives; i++) {
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        ctx.arc(30 + (i * 30), 30, 8, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillText("🪙 " + score, 130, 35);
+    ctx.fillText("🗺️ المرحلة: " + (currentLevelIndex + 1), 220, 35);
+
+    if (gameState === 'WON') {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#2ecc71";
+        ctx.font = "bold 45px sans-serif";
+        ctx.fillText("🏆 ختمت اللعبة بالكامل! 🏆", canvas.width/2 - 230, canvas.height/2 - 20);
+    }
+
+    if (gameState === 'GAMEOVER') {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#e74c3c";
+        ctx.font = "bold 45px sans-serif";
+        ctx.fillText("GAME OVER", canvas.width/2 - 130, canvas.height/2 - 20);
+    }
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+
+</body>
+</html>"""
+
+with open("mario.html", "w", encoding="utf-8") as f:
+    f.write(html_code)
+
+os.system("start mario.html")
+print("تم تشغيل اللعبة بنجاح يا عبودي!")
